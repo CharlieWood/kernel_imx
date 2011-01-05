@@ -1762,6 +1762,9 @@ static int sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 			continue;
 
 		mmc = chip->hosts[i]->mmc;
+		/* do not suspend host for SDIO card - typical is WiFi module */
+		if (mmc->card && (mmc->card->type == MMC_TYPE_SDIO))
+			continue;
 		ret = mmc_suspend_host(mmc);
 		if (ret) {
 			for (i--; i >= 0; i--)
@@ -1807,6 +1810,9 @@ static int sdhci_resume(struct platform_device *pdev)
 			if (ret)
 				return ret;
 		}
+		/* do not resume host for SDIO card - typical is WiFi module */
+		if (mmc->card && (mmc->card->type == MMC_TYPE_SDIO))
+			continue;
 		sdhci_init(chip->hosts[i]);
 		chip->hosts[i]->init_flag = 2;
 		mmiowb();
