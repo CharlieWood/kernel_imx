@@ -1161,6 +1161,8 @@ static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 		if (host->sdio_enable++)
 			goto exit_unlock;
 	} else {
+		if (host->sdio_enable==0)
+			goto exit_unlock;
 		if (--(host->sdio_enable))
 			goto exit_unlock;
 	}
