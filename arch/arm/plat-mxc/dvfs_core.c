@@ -276,7 +276,13 @@ static int set_cpu_freq(int wp)
 		if (podf == arm_podf) {
 			printk(KERN_DEBUG
 			       "No need to change freq and voltage!!!!\n");
-			return 0;
+		       /* Clear the ARM_FREQ_SHIFT_DIVIDER and */
+		       /* set software_dvfs_en bit back to original setting*/
+		       reg = __raw_readl(ccm_base + dvfs_data->ccm_cdcr_offset);
+		       reg &= ~(CCM_CDCR_SW_DVFS_EN | CCM_CDCR_ARM_FREQ_SHIFT_DIVIDER);
+		       reg |= en_sw_dvfs;
+		       __raw_writel(reg, ccm_base + dvfs_data->ccm_cdcr_offset);
+		       return 0;
 		}
 
 		/* Check if FSVAI indicate freq up */
