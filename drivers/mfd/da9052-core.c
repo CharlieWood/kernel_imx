@@ -401,9 +401,11 @@ static int add_da9052_devices(struct da9052 *da9052)
 	if (ret)
 		return ret;
 
+	/*
 	ret = da9052_add_subdevice(da9052, "WLED-2");
 	if (ret)
 		return ret;
+	*/
 
 	ret = da9052_add_subdevice(da9052, "WLED-3");
 	if (ret)
