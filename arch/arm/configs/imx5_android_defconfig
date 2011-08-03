@@ -2579,8 +2579,7 @@ CONFIG_ARM_UNWIND=y
 #
 # Security options
 #
-CONFIG_KEYS=y
-# CONFIG_KEYS_DEBUG_PROC_KEYS is not set
+# CONFIG_KEYS is not set
 CONFIG_SECURITY=y
 # CONFIG_SECURITYFS is not set
 # CONFIG_SECURITY_NETWORK is not set
