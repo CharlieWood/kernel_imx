@@ -266,6 +266,8 @@ struct mxs_dma_plat_data {
 
 #ifndef __ASSEMBLY__
 
+#define MAX_OPNAME_LEN 16
+
 struct cpu_wp {
 	u32 pll_reg;
 	u32 pll_rate;
@@ -277,6 +279,9 @@ struct cpu_wp {
 	u32 mfn;
 	u32 cpu_voltage;
 	u32 cpu_podf;
+
+	int enable;
+	char name[MAX_OPNAME_LEN];
 };
 
 #ifndef CONFIG_ARCH_MX5

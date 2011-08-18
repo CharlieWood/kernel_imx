@@ -253,6 +253,7 @@ struct mxc_audio_platform_data {
 
 	int (*init) (void);	/* board specific init */
 	int (*amp_enable) (int enable);
+	int (*hpmic_switch) (int enable);
 	int (*clock_enable) (int enable);
 	int (*finit) (void);	/* board specific finit */
 	void *priv;		/* used by board specific functions */
@@ -301,6 +302,10 @@ struct mxc_fb_platform_data {
 	int num_modes;
 	char *mode_str;
 	u32 interface_pix_fmt;
+	void (*suspend) (void);         // suspend LCD panel
+	void (*resume) (void);          // resume LCD panel
+	void (*pre_suspend) (void);     // suspend LCD panel
+	void (*pre_resume) (void);      // resume LCD panel
 };
 
 struct mxc_lcd_platform_data {
@@ -534,6 +539,7 @@ struct mxc_pwm_platform_data {
 	int pwmo_invert;
 	void (*enable_pwm_pad) (void);
 	void (*disable_pwm_pad) (void);
+	int duty_percent;	/* % percent of down scale duty cycle */
 };
 
 struct mxc_gpu_platform_data {
