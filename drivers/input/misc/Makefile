@@ -40,6 +40,7 @@ obj-$(CONFIG_INPUT_YEALINK)		+= yealink.o
 obj-$(CONFIG_INPUT_DA9052_ONKEY)	+= da9052_onkey.o
 obj-$(CONFIG_INPUT_ISL29023)		+= isl29023.o
 obj-$(CONFIG_BOSCH_BMA150)		+= smb380.o smb380calib.o bma150_driver.o
+obj-$(CONFIG_SENSORS_HMC5883)		+= hmc5883.o
 
 ifeq ($(CONFIG_BOSCH_BMA150_ENABLE_IRQ),y)
 EXTRA_CFLAGS += -DBMA150_ENABLE_IRQ

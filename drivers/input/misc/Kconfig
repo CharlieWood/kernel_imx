@@ -447,4 +447,14 @@ config BOSCH_BMA150_HAS_EARLYSUSPEND
 	help
 	  If you say yes here you get has early suspend and late resume for Bosch Sensortec's 
 	  acceleration sensors SMB380/BMA150.
+
+config SENSORS_HMC5883
+	tristate "Honeywell HMC5883 3-Axis Magnetometer"
+	depends on I2C
+	help
+	  Say Y here to add support for the Honeywell HMC 5883 3-Axis
+	  Magnetometer (digital compass).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hmc5883
 endif
