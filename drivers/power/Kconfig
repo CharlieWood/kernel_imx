@@ -178,6 +178,18 @@ config MXS_VBUS_CURRENT_DRAW
 	  Say Y to enable 100mA limitation when USB vbus power on system
 	  before enumeration to match USB2.0 requirement.
 
+config BATTERY_MC13892_ADC
+	tristate "Aster Power Supply Driver with charger and batter coulomb counter"
+	default no
+	help
+	  Say Y to enable aster power supply for aster board with charger
+	  and battery coulomb counter
+
+config CHARGER_BQ24103
+        tristate "TI bq24103 charger"
+	help
+	Say Y to include support for bq24103 Battery Charger.
+
 config BATTERY_DS2438
 	tristate "DS2438 battery driver"
 	select W1
