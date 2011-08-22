@@ -42,6 +42,34 @@ config MACH_MX51_BABBAGE
 	  u-boot. This includes specific configurations for the board and its
 	  peripherals.
 
+config MACH_MX51_ASTER7
+	bool "Support MX51 ASTER7 platform"
+	select ARCH_MX51
+	help
+	  Include support for MX51 Letou Aster7 platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX51_TULIP
+	bool "Support MX51 TULIP platform"
+	select ARCH_MX51
+	help
+	  Include support for MX51 Letou TULIP platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX51_IVY
+	bool "Support MX51 IVY platform"
+	select ARCH_MX51
+	help
+	  Include support for MX51 Letou IVY platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX51_LVD
+	bool "Support MX51 LVD platform"
+	select ARCH_MX51
+	help
+	  Include support for MX51 Letou LVD platform. This includes specific
+	  configurations for the board and its peripherals.
+
 config MACH_MX53_EVK
 	bool "Support MX53 EVK platform"
 	select ARCH_MX53
