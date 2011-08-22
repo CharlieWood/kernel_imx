@@ -409,4 +409,42 @@ config INPUT_ISL29023
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29023.
+
+config BOSCH_BMA150
+	tristate "SMB380/BMA150/BMA020/BMA023 acceleration sensor support"
+	depends on I2C
+	help
+	  If you say yes here you get support for Bosch Sensortec's 
+	  acceleration sensors SMB380/BMA150/BMA020/BMA023.
+
+config BOSCH_BMA150_ENABLE_IRQ
+	tristate "SMB380/BMA150 acceleration sensor interrupt support"
+	depends on BOSCH_BMA150
+	help
+	  If you say yes here you get interrupt support for Bosch Sensortec's 
+	  acceleration sensors SMB380/BMA150.
+
+config BOSCH_BMA150_USE_SMBUS
+	tristate "SMB380/BMA150 acceleration sensor use smbus"
+	depends on BOSCH_BMA150
+	default y
+	help
+	  If you say yes here you use smbus for Bosch Sensortec's 
+	  acceleration sensors SMB380/BMA150.
+
+config BOSCH_BMA150_WITH_DEBUG
+	tristate "SMB380/BMA150 acceleration sensor with debug imformation"
+	depends on BOSCH_BMA150
+	default n
+	help
+	  If you say yes here you get debug imformation for Bosch Sensortec's 
+	  acceleration sensors SMB380/BMA150.
+
+config BOSCH_BMA150_HAS_EARLYSUSPEND
+	tristate "SMB380/BMA150 acceleration sensor has early suspend and late resume"
+	depends on BOSCH_BMA150
+	default y
+	help
+	  If you say yes here you get has early suspend and late resume for Bosch Sensortec's 
+	  acceleration sensors SMB380/BMA150.
 endif
