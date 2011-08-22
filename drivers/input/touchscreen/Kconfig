@@ -684,4 +684,19 @@ config TOUCHSCREEN_MAX11801
         To compile this driver as a module, choose M here: the
 	  module will be called max11801_ts
 
+config TOUCHSCREEN_GOODIX
+	tristate "BYD TP20466 TouchScreen"
+	default n
+	depends on I2C
+	help
+	It is a android driver to support Gooidx's touchscreen whose name
+	is guitar on s3c6410 platform. The touchscreen can support multi-touch
+	not more than two fingers.
+
+	Say Y here to enable the driver for the touchscreen on the
+	S3C SMDK board.
+
+	If unsure, say N.To compile this driver as a module, choose M here:
+	the module will be called goodix_touch.ko.
+
 endif
