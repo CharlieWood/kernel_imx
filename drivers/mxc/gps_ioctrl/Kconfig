@@ -11,3 +11,9 @@ config GPS_IOCTRL
 	  Say Y to enable Broadcom GPS ioctrl on MXC platform.
 
 endmenu
+
+config GPS_CONTROL
+	tristate "GPS control support"
+	default no
+	---help---
+		Say Y to enable GPS control by gpio
