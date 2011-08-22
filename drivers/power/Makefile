@@ -41,3 +41,4 @@ obj-$(CONFIG_BATTERY_MC13892_ADC) += mc13892_battery.o
 obj-$(CONFIG_CHARGER_BQ24103)	+= bq24103_charger.o
 obj-$(CONFIG_BATTERY_DS2438)	+= ds2438_battery.o
 obj-$(CONFIG_BATTERY_MAX17085)	+= max17085_battery.o
+obj-$(CONFIG_BATTERY_DS2778)	+= ds2778_battery.o

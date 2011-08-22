@@ -202,4 +202,11 @@ config BATTERY_BQ27210
 	depends on I2C
 	help
 	  Say Y here to enable support for batteries with BQ27210(I2C) chip.
+
+config BATTERY_DS2778
+	tristate "DS2778 battery driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for batteries with DS2778(I2C) chip.
+
 endif # POWER_SUPPLY
