@@ -699,4 +699,17 @@ config TOUCHSCREEN_GOODIX
 	If unsure, say N.To compile this driver as a module, choose M here:
 	the module will be called goodix_touch.ko.
 
+config TOUCHSCREEN_PIXCIR_I2C_TS
+	tristate "PIXCIR I2C touchscreen driver"
+	depends on I2C 
+	default n
+	help
+	Say Y here to enable PIXCIR I2C capacitive touchscreen support,
+	covering devices such as the MGG1010AI06 and EGG1010AI06
+
+	If unsure, say N
+
+	To compile this driver as a module, choose M here: the module will
+	be called pixcir_i2c_ts.
+
 endif
