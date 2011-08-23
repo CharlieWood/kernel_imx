@@ -2383,6 +2383,7 @@ CONFIG_MXC_BLUETOOTH=m
 # Broadcom GPS ioctrl support
 #
 CONFIG_GPS_IOCTRL=m
+CONFIG_GPS_CONTROL=y
 
 #
 # MXC Media Local Bus Driver
