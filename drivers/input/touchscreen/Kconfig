@@ -712,4 +712,17 @@ config TOUCHSCREEN_PIXCIR_I2C_TS
 	To compile this driver as a module, choose M here: the module will
 	be called pixcir_i2c_ts.
 
+config TOUCHSCREEN_FT5X0X_TS
+	tristate "FT5X0X I2C touchscreen driver"
+	depends on I2C 
+	default n
+	help
+	Say Y here to enable FT5X0X I2C capacitive touchscreen support,
+	covering devices such as the MGG1010AI06 and EGG1010AI06
+
+	If unsure, say N
+
+	To compile this driver as a module, choose M here: the module will
+	be called pixcir_i2c_ts.
+
 endif
