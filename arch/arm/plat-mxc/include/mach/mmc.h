@@ -51,7 +51,8 @@ struct mxc_mmc_platform_data {
 	int (*wp_status) (struct device *);
 	char *power_mmc;
 	char *clock_mmc;
-	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 };
+
+extern void mxc_mmc_force_detect(int id);
 
 #endif
