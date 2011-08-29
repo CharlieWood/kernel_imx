@@ -442,14 +442,14 @@ static void ft5x0x_ts_pen_irq_work(struct work_struct *work)
 		ft5x0x_report_value();
 	}
 	enable_irq(this_client->irq);
-	spin_unlock(&irq_spinlock);
+	//spin_unlock(&irq_spinlock);
 }
 
 static irqreturn_t ft5x0x_ts_interrupt(int irq, void *dev_id)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts = dev_id;
 
-	spin_lock(&irq_spinlock);
+	//spin_lock(&irq_spinlock);
 	disable_irq_nosync(this_client->irq);
 
 	if (!work_pending(&ft5x0x_ts->pen_event_work)) {
@@ -462,14 +462,14 @@ static irqreturn_t ft5x0x_ts_interrupt(int irq, void *dev_id)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void ft5x0x_ts_suspend(struct early_suspend *handler)
 {
-	spin_lock(&irq_spinlock);
+	//spin_lock(&irq_spinlock);
 	disable_irq(this_client->irq);
 }
 
 static void ft5x0x_ts_resume(struct early_suspend *handler)
 {
 	enable_irq(this_client->irq);
-	spin_unlock(&irq_spinlock);
+	//spin_unlock(&irq_spinlock);
 }
 #endif  //CONFIG_HAS_EARLYSUSPEND
 
