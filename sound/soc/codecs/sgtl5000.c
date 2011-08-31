@@ -28,6 +28,12 @@
 #include <mach/hardware.h>
 
 #include "sgtl5000.h"
+#define DEBUG
+
+static int sgtl5000_reg_func;
+static int sgtl5000_mic_bias_func;
+static SGTL5000_POWER_FOUNC sgtl5000_power_status;
+static struct snd_soc_codec *sgtl5000_codec;
 
 struct sgtl5000_priv {
 	int sysclk;
@@ -219,25 +225,240 @@ static int all_reg[] = {
 	SGTL5000_CHIP_PLL_CTRL,
 	SGTL5000_CHIP_CLK_TOP_CTRL,
 	SGTL5000_CHIP_ANA_STATUS,
+	SGTL5000_CHIP_ANA_TEST1,
 	SGTL5000_CHIP_SHORT_CTRL,
+	SGTL5000_CHIP_ANA_TEST2, 		
+	SGTL5000_DAP_CTRL,			    
+	SGTL5000_DAP_PEQ,			    
+	SGTL5000_DAP_BASS_ENHANCE,
+	SGTL5000_DAP_BASS_ENHANCE_CTRL,
+	SGTL5000_DAP_AUDIO_EQ,
+	SGTL5000_DAP_SURROUND,
+	SGTL5000_DAP_FLT_COEF_ACCESS,
+	SGTL5000_DAP_COEF_WR_B0_MSB,
+	SGTL5000_DAP_COEF_WR_B0_LSB,
+	SGTL5000_DAP_EQ_BASS_BAND0,
+	SGTL5000_DAP_EQ_BASS_BAND1,
+	SGTL5000_DAP_EQ_BASS_BAND2,
+	SGTL5000_DAP_EQ_BASS_BAND3,
+	SGTL5000_DAP_EQ_BASS_BAND4,
+	SGTL5000_DAP_MAIN_CHAN,
+	SGTL5000_DAP_MIX_CHAN,
+	SGTL5000_DAP_AVC_CTRL,
+	SGTL5000_DAP_AVC_THRESHOLD,
+	SGTL5000_DAP_AVC_ATTACK,
+	SGTL5000_DAP_AVC_DECAY,
+	SGTL5000_DAP_COEF_WR_B1_MSB,
+	SGTL5000_DAP_COEF_WR_B1_LSB,
+	SGTL5000_DAP_COEF_WR_B2_MSB,
+	SGTL5000_DAP_COEF_WR_B2_LSB,
+	SGTL5000_DAP_COEF_WR_A1_MSB,
+	SGTL5000_DAP_COEF_WR_A1_LSB,
+	SGTL5000_DAP_COEF_WR_A2_MSB,
+	SGTL5000_DAP_COEF_WR_A2_LSB,
 };
 
 #ifdef DEBUG
 static void dump_reg(struct snd_soc_codec *codec)
 {
 	int i, reg;
-	printk(KERN_DEBUG "dump begin\n");
-	for (i = 0; i < 21; i++) {
-		reg = sgtl5000_read(codec, all_reg[i]);
-		printk(KERN_DEBUG "d r %04x, v %04x\n", all_reg[i], reg);
+	for (i = 0; i < 51; i++) {
+		reg = sgtl5000_hw_read(codec, all_reg[i]);
+		printk("address = 0x%04x, value = 0x%04x\n", all_reg[i], reg);
 	}
-	printk(KERN_DEBUG "dump end\n");
+}
+
+
+static int sgtl5000_regStatus_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	sgtl5000_reg_func = ucontrol->value.enumerated.item[0];
+	
+	if (sgtl5000_reg_func)
+	{
+	    dump_reg(sgtl5000_dai.codec);
+	}
+	return 1;
+}
+
+static int sgtl5000_regStatus_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = sgtl5000_reg_func;
+	return 0;
 }
 #else
 static void dump_reg(struct snd_soc_codec *codec)
 {
 }
 #endif
+
+
+static void sgtl5000_mic_bias(struct snd_soc_codec *codec, int enable)
+{
+	int reg, bias_r = 0;
+	if (enable)
+		bias_r = SGTL5000_BIAS_R_4k << SGTL5000_BIAS_R_SHIFT;
+	reg = sgtl5000_read(codec, SGTL5000_CHIP_MIC_CTRL);
+	if ((reg & SGTL5000_BIAS_R_MASK) != bias_r) {
+		reg &= ~SGTL5000_BIAS_R_MASK;
+		reg |= bias_r;
+		sgtl5000_write(codec, SGTL5000_CHIP_MIC_CTRL, reg);
+	}
+}
+
+static int sgtl5000_mic_bias_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	int is_speak_and_headset_openning = 0;
+	int reg = 0; 
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (sgtl5000_mic_bias_func == ucontrol->value.enumerated.item[0]){
+		return 0;
+	}
+
+	reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_POWER);
+
+	sgtl5000_mic_bias_func = ucontrol->value.enumerated.item[0];
+
+	if (sgtl5000_mic_bias_func){
+		sgtl5000_mic_bias(codec, 1);
+		if (!(reg & SGTL5000_VAG_POWERUP)) {
+			reg |= SGTL5000_VAG_POWERUP;
+			sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+		}
+	}
+	else{
+		sgtl5000_mic_bias(codec, 0);
+		is_speak_and_headset_openning = (sgtl5000_power_status != SPK_AMP_POWER_ON) ? ((sgtl5000_power_status != HP_AMP_POWER_ON) ? HEADSET_OFF : HEADSET_ON) : SPEAK_ON;
+		if (is_speak_and_headset_openning){
+			if (reg & SGTL5000_VAG_POWERUP) {
+				reg &= ~SGTL5000_VAG_POWERUP;
+				sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+			}
+		}
+	}
+
+	return 1;
+}
+
+static int sgtl5000_mic_bias_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = sgtl5000_mic_bias_func;
+	return 0;
+}
+
+static int sgtl5000_power_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	u16 reg;
+	int delay = 0;
+
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if ((SGTL5000_POWER_FOUNC)ucontrol->value.enumerated.item[0] < ALL_POWER_OFF || (SGTL5000_POWER_FOUNC)ucontrol->value.enumerated.item[0] > HP_AMP_POWER_OFF){
+		printk(KERN_ERR "Set the invalid power function!!\n");
+		return -1;
+	} else if (sgtl5000_power_status == (SGTL5000_POWER_FOUNC)ucontrol->value.enumerated.item[0]){
+		printk(KERN_WARNING "Set the same power function!\n");
+		return 0;
+	} else {
+		sgtl5000_power_status = (SGTL5000_POWER_FOUNC)ucontrol->value.enumerated.item[0];
+	}
+
+	reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_POWER);
+	if (reg & SGTL5000_VAG_POWERUP){
+		delay = 200;
+	}
+
+	switch(sgtl5000_power_status)
+	{
+		case ALL_POWER_OFF:
+		case SPK_AMP_POWER_OFF:
+		case HP_AMP_POWER_OFF:
+		{
+			if (reg & SGTL5000_VAG_POWERUP && !sgtl5000_mic_bias_func) {
+				reg &= ~SGTL5000_VAG_POWERUP;
+				sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+				msleep(200);
+			}
+
+			if(sgtl5000_power_status == ALL_POWER_OFF){
+				reg &= ~SGTL5000_HP_POWERUP;
+				reg &= ~SGTL5000_LINE_OUT_POWERUP;
+			}
+			else if(sgtl5000_power_status == SPK_AMP_POWER_OFF){
+				reg &= ~SGTL5000_LINE_OUT_POWERUP;
+			}
+			else if(sgtl5000_power_status == HP_AMP_POWER_OFF){
+				reg &= ~SGTL5000_HP_POWERUP;
+			}
+
+			reg &= ~SGTL5000_DAC_POWERUP;
+			sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+			reg = sgtl5000_read(codec, SGTL5000_CHIP_DIG_POWER);
+			reg &= ~SGTL5000_DAC_EN;
+			sgtl5000_write(codec, SGTL5000_CHIP_DIG_POWER, reg);
+
+			return 1;
+		}
+		break;
+
+		case SPK_AMP_POWER_ON:
+		{
+			reg |= SGTL5000_LINE_OUT_POWERUP;
+		}
+		break;
+
+		case HP_AMP_POWER_ON:
+		{
+			reg |= SGTL5000_HP_POWERUP;
+		}
+		break;
+
+		default:
+		{
+			printk( "sgtl5000_power_set: sgtl5000_power_status = %d is incorrect!\n", sgtl5000_power_status);
+		}
+		break;
+	}
+
+	reg |= SGTL5000_DAC_POWERUP;
+	reg &= ~SGTL5000_VAG_POWERUP;
+	sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+	if (delay){
+		msleep(delay);
+	}
+
+	reg = sgtl5000_read(codec, SGTL5000_CHIP_DIG_POWER);
+	reg |= SGTL5000_DAC_EN;
+	sgtl5000_write(codec, SGTL5000_CHIP_DIG_POWER, reg);
+
+	reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_POWER);
+	reg |= SGTL5000_VAG_POWERUP;
+	sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
+
+	return 1;
+}
+
+static int sgtl5000_power_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = sgtl5000_power_status;
+	return 0;
+}
+
+static const char *power_function[] = { "off", "speaker_amp_on", "speaker_amp_off", "headset_amp_on", "headset_amp_off"};
+static const char *mic_bias_function[] = { "off", "on"};
+static const char *dumpReg_function[] = { "off", "on"};
+
+static const struct soc_enum sgtl5000_enum[] = {
+		SOC_ENUM_SINGLE_EXT(5, power_function),
+		SOC_ENUM_SINGLE_EXT(2, mic_bias_function),
+		SOC_ENUM_SINGLE_EXT(2, dumpReg_function),
+};
+
+static const struct snd_kcontrol_new sgtl5000_controls[] = {
+	SOC_ENUM_EXT("Power Function", sgtl5000_enum[0], sgtl5000_power_get, sgtl5000_power_set),
+	SOC_ENUM_EXT("Mic bias Function", sgtl5000_enum[1], sgtl5000_mic_bias_get, sgtl5000_mic_bias_set),
+	SOC_ENUM_EXT("DumpRegister Function", sgtl5000_enum[2], sgtl5000_regStatus_get, sgtl5000_regStatus_set),
+};
 
 static const char *adc_mux_text[] = {
 	"MIC_IN", "LINE_IN"
@@ -381,8 +602,27 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 	 .get = dac_get_volsw,
 	 .put = dac_put_volsw,
 	 },
-	SOC_DOUBLE("Headphone Volume", SGTL5000_CHIP_ANA_HP_CTRL, 0, 8, 0x7f,
-		   1),
+	SOC_DOUBLE("Headphone Volume", SGTL5000_CHIP_ANA_HP_CTRL, 0, 8, 0x7f, 1),
+	SOC_SINGLE("CHIP_DIG_POWER_0x0002", SGTL5000_CHIP_DIG_POWER, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_CLK_CTRL_0x0004", SGTL5000_CHIP_CLK_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_I2S_CTRL_0x0006", SGTL5000_CHIP_I2S_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_SSS_CTRL_0x000A", SGTL5000_CHIP_SSS_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_CHIP_ADCDAC_CTRL_0x000E", SGTL5000_CHIP_ADCDAC_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_DAC_VOL_0x0010", SGTL5000_CHIP_DAC_VOL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_PAD_STRENGTH_0x0014", SGTL5000_CHIP_PAD_STRENGTH, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_ANA_ADC_CTRL_0x0020", SGTL5000_CHIP_ANA_ADC_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_ANA_HP_CTRL_0x0022", SGTL5000_CHIP_ANA_HP_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_ANA_CTRL_0x0024", SGTL5000_CHIP_ANA_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_LINREG_CTRL_0x0026", SGTL5000_CHIP_LINREG_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_REF_CTRL_0x0028", SGTL5000_CHIP_REF_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_MIC_CTRL_0x002A", SGTL5000_CHIP_MIC_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_LINE_OUT_CTRL_0x002C", SGTL5000_CHIP_LINE_OUT_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_LINE_OUT_VOL_0x002E", SGTL5000_CHIP_LINE_OUT_VOL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_ANA_POWER_0x0030", SGTL5000_CHIP_ANA_POWER, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_PLL_CTRL_0x0032", SGTL5000_CHIP_PLL_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_CLK_TOP_CTRL_0x0034", SGTL5000_CHIP_CLK_TOP_CTRL, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_ANA_STATUS_0x0036", SGTL5000_CHIP_ANA_STATUS, 0, 0xffff, 0),
+	SOC_SINGLE("CHIP_SHORT_CTRL_0x003C", SGTL5000_CHIP_SHORT_CTRL, 0, 0xffff, 0),
 };
 
 static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
@@ -402,7 +642,7 @@ static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 	sgtl5000_write(codec, SGTL5000_CHIP_ADCDAC_CTRL, adcdac_ctrl);
 	if (!mute)
-		dump_reg(codec);
+		//dump_reg(codec);
 	return 0;
 }
 
@@ -774,38 +1014,25 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void sgtl5000_mic_bias(struct snd_soc_codec *codec, int enable)
-{
-	int reg, bias_r = 0;
-	if (enable)
-		bias_r = SGTL5000_BIAS_R_4k << SGTL5000_BIAS_R_SHIFT;
-	reg = sgtl5000_read(codec, SGTL5000_CHIP_MIC_CTRL);
-	if ((reg & SGTL5000_BIAS_R_MASK) != bias_r) {
-		reg &= ~SGTL5000_BIAS_R_MASK;
-		reg |= bias_r;
-		sgtl5000_write(codec, SGTL5000_CHIP_MIC_CTRL, reg);
-	}
-}
-
 static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 				   enum snd_soc_bias_level level)
 {
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
 	u16 reg, ana_pwr;
-	int delay = 0;
+	//int delay = 0;
 	pr_debug("dapm level %d\n", level);
 	switch (level) {
 	case SND_SOC_BIAS_ON:		/* full On */
 		if (codec->bias_level == SND_SOC_BIAS_ON)
 			break;
 
+#if 0
 		sgtl5000_mic_bias(codec, 1);
-
 		reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_POWER);
 		reg |= SGTL5000_VAG_POWERUP;
 		sgtl5000_write(codec, SGTL5000_CHIP_ANA_POWER, reg);
 		msleep(400);
-
+#endif
 		break;
 
 	case SND_SOC_BIAS_PREPARE:	/* partial On */
@@ -816,6 +1043,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->bias_level == SND_SOC_BIAS_PREPARE)
 			break;
 
+#if 0
 		sgtl5000_mic_bias(codec, 0);
 
 		/* must power up hp/line out before vag & dac to
@@ -834,7 +1062,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 		reg = sgtl5000_read(codec, SGTL5000_CHIP_DIG_POWER);
 		reg |= SGTL5000_DAC_EN;
 		sgtl5000_write(codec, SGTL5000_CHIP_DIG_POWER, reg);
-
+#endif
 		break;
 
 	case SND_SOC_BIAS_STANDBY:	/* Off, with power */
@@ -843,12 +1071,12 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->bias_level == SND_SOC_BIAS_STANDBY)
 			break;
 
+#if 0
 		/* soc calls digital_mute to unmute before record but doesn't
 		   call digital_mute to mute after record. */
 		sgtl5000_digital_mute(&sgtl5000_dai, 1);
 
 		sgtl5000_mic_bias(codec, 0);
-
 		reg = sgtl5000_read(codec, SGTL5000_CHIP_ANA_POWER);
 		if (reg & SGTL5000_VAG_POWERUP) {
 			reg &= ~SGTL5000_VAG_POWERUP;
@@ -863,7 +1091,7 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 		reg = sgtl5000_read(codec, SGTL5000_CHIP_DIG_POWER);
 		reg &= ~SGTL5000_DAC_EN;
 		sgtl5000_write(codec, SGTL5000_CHIP_DIG_POWER, reg);
-
+#endif
 		sgtl5000->need_clk_for_bias = 0;
 		sgtl5000_clock_gating(codec, 0);
 
@@ -971,7 +1199,6 @@ static int sgtl5000_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_codec *codec = socdev->card->codec;
 
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	return 0;
 }
 
@@ -1003,7 +1230,6 @@ static int sgtl5000_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct snd_soc_codec *sgtl5000_codec;
 
 /*
  * initialise the SGTL5000 driver
@@ -1017,7 +1243,10 @@ static int sgtl5000_probe(struct platform_device *pdev)
 	struct sgtl5000_setup_data *setup = socdev->codec_data;
 	u16 reg, ana_pwr, lreg_ctrl, ref_ctrl, lo_ctrl, short_ctrl, sss;
 	int vag;
-	int ret = 0;
+	int ret = 0;			
+	sgtl5000_power_status = ALL_POWER_OFF;
+	sgtl5000_mic_bias_func = 0;
+	sgtl5000_reg_func = 0;
 
 	socdev->card->codec = sgtl5000_codec;
 
@@ -1155,6 +1384,8 @@ static int sgtl5000_probe(struct platform_device *pdev)
 
 	snd_soc_add_controls(codec, sgtl5000_snd_controls,
 			     ARRAY_SIZE(sgtl5000_snd_controls));
+	snd_soc_add_controls(codec, sgtl5000_controls,
+				 ARRAY_SIZE(sgtl5000_controls));
 	sgtl5000_add_widgets(codec);
 
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

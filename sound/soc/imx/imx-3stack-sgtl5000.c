@@ -294,18 +294,22 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int sgtl5000_jack_func;
 static int sgtl5000_spk_func;
 static int sgtl5000_line_in_func;
+static int sgtl5000_hphonemic_switch;
+
 
 static void headphone_detect_handler(struct work_struct *work)
 {
 	struct imx_3stack_priv *priv = &card_priv;
 	struct platform_device *pdev = priv->pdev;
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
-	int hp_status;
+	int hp_status = 0;
 	char *envp[3];
 	char *buf;
 
 	sysfs_notify(&pdev->dev.kobj, NULL, "headphone");
-	hp_status = plat->hp_status();
+
+	if(plat->hp_status != NULL)
+		hp_status = plat->hp_status();
 
 	/* setup a message for userspace headphone in */
 	buf = kmalloc(32, GFP_ATOMIC);
@@ -321,9 +325,14 @@ static void headphone_detect_handler(struct work_struct *work)
 	kfree(buf);
 
 	if (hp_status)
+	{
 		set_irq_type(plat->hp_irq, IRQ_TYPE_EDGE_FALLING);
+	}
 	else
+	{
 		set_irq_type(plat->hp_irq, IRQ_TYPE_EDGE_RISING);
+	}
+	
 	enable_irq(plat->hp_irq);
 }
 
@@ -332,7 +341,7 @@ static DECLARE_DELAYED_WORK(hp_event, headphone_detect_handler);
 static irqreturn_t imx_headphone_detect_handler(int irq, void *data)
 {
 	disable_irq_nosync(irq);
-	schedule_delayed_work(&hp_event, msecs_to_jiffies(200));
+	schedule_delayed_work(&hp_event, msecs_to_jiffies(500));
 	return IRQ_HANDLED;
 }
 
@@ -341,10 +350,11 @@ static ssize_t show_headphone(struct device_driver *dev, char *buf)
 	struct imx_3stack_priv *priv = &card_priv;
 	struct platform_device *pdev = priv->pdev;
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
-	u16 hp_status;
+	u16 hp_status = 0;
 
 	/* determine whether hp is plugged in */
-	hp_status = plat->hp_status();
+	if (plat->hp_status != NULL)
+		hp_status = plat->hp_status();
 
 	if (hp_status == 0)
 		strcpy(buf, "speaker\n");
@@ -362,10 +372,13 @@ static const char *spk_function[] = { "off", "on" };
 
 static const char *line_in_function[] = { "off", "on" };
 
+static const char *hpmic_switch_function[] = { "ext", "int"};
+
 static const struct soc_enum sgtl5000_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
 	SOC_ENUM_SINGLE_EXT(2, line_in_function),
+	SOC_ENUM_SINGLE_EXT(2, hpmic_switch_function),
 };
 
 static int sgtl5000_get_jack(struct snd_kcontrol *kcontrol,
@@ -385,9 +398,13 @@ static int sgtl5000_set_jack(struct snd_kcontrol *kcontrol,
 
 	sgtl5000_jack_func = ucontrol->value.enumerated.item[0];
 	if (sgtl5000_jack_func)
+	{
 		snd_soc_dapm_enable_pin(codec, "Headphone Jack");
+	}
 	else
+	{
 		snd_soc_dapm_disable_pin(codec, "Headphone Jack");
+	}
 
 	snd_soc_dapm_sync(codec);
 	return 1;
@@ -435,9 +452,13 @@ static int sgtl5000_set_line_in(struct snd_kcontrol *kcontrol,
 
 	sgtl5000_line_in_func = ucontrol->value.enumerated.item[0];
 	if (sgtl5000_line_in_func)
+	{
 		snd_soc_dapm_enable_pin(codec, "Line In Jack");
+	}
 	else
+	{
 		snd_soc_dapm_disable_pin(codec, "Line In Jack");
+	}
 
 	snd_soc_dapm_sync(codec);
 	return 1;
@@ -461,6 +482,57 @@ static int spk_amp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int hphone_mic_switch(int on)
+{
+	struct imx_3stack_priv *priv = &card_priv;
+	struct platform_device *pdev = priv->pdev;
+	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
+
+	if (plat->hpmic_switch == NULL)
+		return 0;
+
+	if (on)	
+	{
+		plat->hpmic_switch(1);
+	}
+	else
+	{
+		plat->hpmic_switch(0);
+	}
+
+	return 0;
+}
+
+static int sgtl5000_hpmic_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (sgtl5000_hphonemic_switch == ucontrol->value.enumerated.item[0])
+	{
+		return 0;
+	}
+
+	sgtl5000_hphonemic_switch = ucontrol->value.enumerated.item[0];
+
+	if (sgtl5000_hphonemic_switch)
+	{
+		hphone_mic_switch(1);
+	}
+	else
+	{
+		hphone_mic_switch(0);
+	}
+
+	return 1;
+}
+
+static int sgtl5000_hpmic_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = sgtl5000_hphonemic_switch;
+	return 0;
+}
+
+
 /* imx_3stack card dapm widgets */
 static const struct snd_soc_dapm_widget imx_3stack_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
@@ -476,6 +548,8 @@ static const struct snd_kcontrol_new sgtl5000_machine_controls[] = {
 		     sgtl5000_set_spk),
 	SOC_ENUM_EXT("Line In Function", sgtl5000_enum[1], sgtl5000_get_line_in,
 		     sgtl5000_set_line_in),
+	SOC_ENUM_EXT("Mic Switch", sgtl5000_enum[3], sgtl5000_hpmic_get,
+			 sgtl5000_hpmic_set),
 };
 
 #if defined(CONFIG_MXC_ASRC) || defined(CONFIG_MXC_ASRC_MODULE)
@@ -625,14 +699,19 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 	   cycles after all power rails have been brought up. After this time
 	   communication can start */
 
-	if (plat->hp_status())
-		ret = request_irq(plat->hp_irq,
-				  imx_headphone_detect_handler,
-				  IRQ_TYPE_EDGE_FALLING, pdev->name, priv);
-	else
-		ret = request_irq(plat->hp_irq,
-				  imx_headphone_detect_handler,
-				  IRQ_TYPE_EDGE_RISING, pdev->name, priv);
+	if ((plat->hp_status != NULL) && plat->hp_irq)
+	{
+		if (plat->hp_status()){
+			ret = request_irq(plat->hp_irq,
+					imx_headphone_detect_handler,
+					IRQ_TYPE_EDGE_FALLING, pdev->name, priv);
+		}else{
+			ret = request_irq(plat->hp_irq,
+					imx_headphone_detect_handler,
+					IRQ_TYPE_EDGE_RISING, pdev->name, priv);
+		}	
+	}
+
 	if (ret < 0) {
 		pr_err("%s: request irq failed\n", __func__);
 		goto err_card_reg;
@@ -648,7 +727,8 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 
 	sgtl5000_jack_func = 1;
 	sgtl5000_spk_func = 1;
-	sgtl5000_line_in_func = 0;
+	sgtl5000_line_in_func = 1;
+	sgtl5000_hphonemic_switch = 1;
 
 	return 0;
 
@@ -676,9 +756,20 @@ static int imx_3stack_sgtl5000_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int imx_3stack_sgtl5000_shutdown(struct platform_device *pdev)
+{
+	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
+
+	if (plat->finit)
+		plat->finit();
+
+	return 0;
+}
+
 static struct platform_driver imx_3stack_sgtl5000_audio_driver = {
 	.probe = imx_3stack_sgtl5000_probe,
 	.remove = imx_3stack_sgtl5000_remove,
+	.shutdown = imx_3stack_sgtl5000_shutdown,
 	.driver = {
 		   .name = "imx-3stack-sgtl5000",
 		   },

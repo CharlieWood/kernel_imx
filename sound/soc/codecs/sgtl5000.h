@@ -20,7 +20,7 @@ extern struct snd_soc_codec_device soc_codec_dev_sgtl5000;
 /*
  * Register values.
  */
-#define SGTL5000_CHIP_ID			0x0000
+#define SGTL5000_CHIP_ID			    0x0000
 #define SGTL5000_CHIP_DIG_POWER			0x0002
 #define SGTL5000_CHIP_CLK_CTRL			0x0004
 #define SGTL5000_CHIP_I2S_CTRL			0x0006
@@ -40,15 +40,16 @@ extern struct snd_soc_codec_device soc_codec_dev_sgtl5000;
 #define SGTL5000_CHIP_PLL_CTRL			0x0032
 #define SGTL5000_CHIP_CLK_TOP_CTRL		0x0034
 #define SGTL5000_CHIP_ANA_STATUS		0x0036
+#define SGTL5000_CHIP_ANA_TEST1			0x0038
 #define SGTL5000_CHIP_SHORT_CTRL		0x003c
 #define SGTL5000_CHIP_ANA_TEST2			0x003a
-#define SGTL5000_DAP_CTRL			0x0100
-#define SGTL5000_DAP_PEQ			0x0102
+#define SGTL5000_DAP_CTRL			    0x0100
+#define SGTL5000_DAP_PEQ			    0x0102
 #define SGTL5000_DAP_BASS_ENHANCE		0x0104
-#define SGTL5000_DAP_BASS_ENHANCE_CTRL		0x0106
+#define SGTL5000_DAP_BASS_ENHANCE_CTRL	0x0106
 #define SGTL5000_DAP_AUDIO_EQ			0x0108
 #define SGTL5000_DAP_SURROUND			0x010a
-#define SGTL5000_DAP_FLT_COEF_ACCESS		0x010c
+#define SGTL5000_DAP_FLT_COEF_ACCESS	0x010c
 #define SGTL5000_DAP_COEF_WR_B0_MSB		0x010e
 #define SGTL5000_DAP_COEF_WR_B0_LSB		0x0110
 #define SGTL5000_DAP_EQ_BASS_BAND0		0x0116
@@ -407,4 +408,23 @@ struct sgtl5000_setup_data {
 	int (*clock_enable) (int enable);
 };
 
+typedef enum
+{
+    ALL_POWER_OFF = 0,
+    SPK_AMP_POWER_ON,
+    SPK_AMP_POWER_OFF,
+    HP_AMP_POWER_ON,
+    HP_AMP_POWER_OFF,
+    FAILED_ENUM,
+} SGTL5000_POWER_FOUNC;
+
+typedef enum {
+    SPEAK_ON = 0,
+    SPEAK_OFF
+}SPEAK_STATUS;
+
+typedef enum {
+    HEADSET_ON = 0,
+    HEADSET_OFF
+}HEADSET_STATUS;
 #endif
