@@ -17,25 +17,48 @@
 #include <mach/gpio.h>
 
 static struct gps_control_data *gps_pdata;
+static int gps_pwr_en_value;
+static int gps_nrst_value;
 
-static ssize_t gps_ctrl_show(struct device *dev,
-								struct device_attribute *attr, char *buf)
+static ssize_t gps_pwr_en_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int state = gps_pdata->get_status();
-	return sprintf(buf, "gps status: %s ", state ? "enabled" : "disabled");
+	return sprintf(buf, "%d", gps_pwr_en_value);
 }
 
-static ssize_t gps_ctrl_store(struct device *dev,
-								struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t gps_pwr_en_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-	if(!strncmp(buf, "enable", 6)) {
-		gps_pdata->set_power(1);
-	} else if (!strncmp(buf, "disable", 7)) {
-		gps_pdata->set_power(0);
+	if(!strncmp(buf, "1", 1)) {
+		gps_pwr_en_value = 1;
+		if(gps_pdata->set_power)
+			gps_pdata->set_power(1);
+	} else if (!strncmp(buf, "0", 1)) {
+		gps_pwr_en_value = 0;
+		if(gps_pdata->set_power)
+			gps_pdata->set_power(0);
 	}
 	return size;
 }
-static DEVICE_ATTR(gps_control, 0644, gps_ctrl_show, gps_ctrl_store);
+static DEVICE_ATTR(gps_pwr_en, 0644, gps_pwr_en_show, gps_pwr_en_store);
+
+static ssize_t gps_nrst_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d", gps_nrst_value);
+}
+
+static ssize_t gps_nrst_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	if(!strncmp(buf, "1", 1)) {
+		gps_nrst_value = 1;
+		if(gps_pdata->set_nrst)
+			gps_pdata->set_nrst(1);
+	} else if (!strncmp(buf, "0", 1)) {
+		gps_nrst_value = 0;
+		if(gps_pdata->set_nrst)
+			gps_pdata->set_nrst(0);
+	}
+	return size;
+}
+static DEVICE_ATTR(gps_nrst, 0644, gps_nrst_show, gps_nrst_store);
 
 static int gps_control_probe(struct platform_device *pdev)
 {
@@ -48,7 +71,12 @@ static int gps_control_probe(struct platform_device *pdev)
 
 	gps_pdata = pdev->dev.platform_data;
 
-	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_gps_control.attr);
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_gps_pwr_en.attr);
+	if (ret) {
+		printk(KERN_ERR "%s, register sysfs interface failed, ret: %d \n", __func__, ret);
+		return ret;
+	}
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_gps_nrst.attr);
 	if (ret) {
 		printk(KERN_ERR "%s, register sysfs interface failed, ret: %d \n", __func__, ret);
 		return ret;
