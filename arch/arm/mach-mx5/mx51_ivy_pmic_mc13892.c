@@ -2,7 +2,7 @@
  * mx51-ivy-pmic-mc13892.c  --  i.MX51 Tulip Driver for Atlas MC13892 PMIC
  */
  /*
-  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
+  * Copyright (C) 2009-2011 Freescale Semiconductor, Inc. All Rights Reserved.
   */
 
  /*
@@ -25,6 +25,7 @@
 #include <mach/irqs.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
+#include <mach/gpio.h>
 
 /*
  * Convenience conversion.
@@ -350,7 +351,7 @@ static struct regulator_init_data gpo4_init = {
 static int mc13892_regulator_init(struct mc13892 *mc13892)
 {
 	unsigned int value, register_mask;
-	printk(KERN_INFO "Initializing regulators for Tulip.\n");
+	printk(KERN_INFO "Initializing regulators for Ivy.\n");
 	if (mxc_cpu_is_rev(CHIP_REV_2_0) < 0)
 		sw2_init.constraints.state_mem.uV = 1100000;
 	else if (mxc_cpu_is_rev(CHIP_REV_2_0) == 1) {
@@ -438,8 +439,8 @@ static struct mc13892_platform_data mc13892_plat = {
 };
 
 static struct spi_board_info __initdata mc13892_spi_device = {
-	.modalias = "pmic_spi",
-	.irq = IOMUX_TO_IRQ_V3(8),
+	.modalias = "mc13892",
+	.irq = gpio_to_irq(8),
 	.max_speed_hz = 6000000,	/* max spi SCK clock speed in HZ */
 	.bus_num = 1,
 	.chip_select = 0,

@@ -27,6 +27,8 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/regulator/consumer.h>
+#include <linux/android_pmem.h>
+#include <linux/usb/android_composite.h>
 #include <linux/pmic_adc.h>
 #include <linux/pmic_external.h>
 #include <linux/pmic_status.h>
@@ -51,8 +53,6 @@
 #include <mach/iomux-mx51.h>
 #include <mach/i2c.h>
 #include <mach/mxc_iim.h>
-#include <linux/android_pmem.h>
-#include <linux/usb/android_composite.h>
 #include <linux/switch.h>
 #include <linux/i2c/hmc5883.h>
 #include <linux/timed_gpio.h>
@@ -63,6 +63,7 @@
 #include <linux/i2c/pixcir_i2c_ts.h>
 #include <linux/bq24103_charger.h>
 #include <linux/battery_device_info.h>
+#include <linux/gps/gps.h>
 
 #ifdef CONFIG_PM_CHECK
 #include <linux/pm_check.h>
@@ -92,7 +93,6 @@
 #define LVD_TOUCH_INT       (0*32 + 9)  /* GPIO_1_9 */
 #define LVD_3G_RST          (0*32 + 10) /* GPIO_1_10 */
 #define LVD_GPS_RST         (0*32 + 19) /* GPIO_1_19 */
-#define LVD_GPS_UART2_TXD   (0*32 + 21) /* GPIO_1_21 */
 #define LVD_GPS_PWR_ON      (0*32 + 29) /* GPIO_1_29 */
 #define LVD_HOST_WAKEUP_WLAN (0*32 + 30) /* GPIO_1_30 */
 #define LVD_HOST_WAKEUP_BT  (0*32 + 31) /* GPIO_1_31 */
@@ -136,7 +136,9 @@ extern int __init mx51_lvd_init_mc13892(void);
 extern struct cpu_wp *(*get_cpu_wp)(int *wp);
 extern void (*set_num_cpu_wp)(int num);
 extern struct dvfs_wp *(*get_dvfs_core_wp)(int *wp);
-static int num_cpu_wp = 4;
+
+static int num_cpu_wp;
+
 static void psy_register_device(void);
 extern void (*pm_enter_standby_misc_setting)(int);
 
@@ -188,26 +190,26 @@ static struct gpio_check lvd_gpio_check[] = {
 };
 #endif
 
-static struct pad_desc mx51lvd_pads[] = {
+static iomux_v3_cfg_t mx51lvd_pads[] = {
 	/* charger ac_in */
-	MX51_PAD_EIM_D17__GPIO_2_1,
+	MX51_PAD_EIM_D17__GPIO2_1,
 	/* charger ok */
-	MX51_PAD_EIM_D18__GPIO_2_2,
+	MX51_PAD_EIM_D18__GPIO2_2,
 
 	/* RST_USB_PHY_B, ALT1 gpio2_5 */
-	MX51_PAD_EIM_D21__GPIO_2_5,
+	MX51_PAD_EIM_D21__GPIO2_5,
 
 	/* HOST_WAKEUP_WLAN, to BCM4329, ALT5 gpio1_30 */
-	 MX51_PAD_DISP2_DAT8__GPIO_1_30,
+	 MX51_PAD_DISP2_DAT8__GPIO1_30,
 
 	/* WLAN_WAKEUP_HOST, from BCM4329, ALT3 gpio4_6*/
-	MX51_PAD_NANDF_D2__GPIO_4_6,
+	MX51_PAD_NANDF_D2__GPIO4_6,
 
 	/*EN_WIFI_PWR,ALT3 gpio4_2*/
-	 MX51_PAD_NANDF_D6__GPIO_4_2,
+	 MX51_PAD_NANDF_D6__GPIO4_2,
 
 	/* WL_RST, ALT3 gpio4_4 */
-	 MX51_PAD_NANDF_D4__GPIO_4_4,
+	 MX51_PAD_NANDF_D4__GPIO4_4,
 
 
 	/* uart 3 */
@@ -217,48 +219,48 @@ static struct pad_desc mx51lvd_pads[] = {
 	MX51_PAD_EIM_D27__UART3_RTS,
 
 	/* LID close */
-	MX51_PAD_EIM_A24__GPIO_2_18,
+	MX51_PAD_EIM_A24__GPIO2_18,
 
 	/* low battery wake up */
-	MX51_PAD_EIM_A25__GPIO_2_19,
+	MX51_PAD_EIM_A25__GPIO2_19,
 
 	/* CSI1_DATA_EN */
-	MX51_PAD_EIM_A26__GPIO_2_20,
+	MX51_PAD_EIM_A26__GPIO2_20,
 
 	/* SYS_ON_OFF_REQ */
-	MX51_PAD_EIM_A27__GPIO_2_21,
+	MX51_PAD_EIM_A27__GPIO2_21,
 
 	/* G-SENSOR_INT*/
-	MX51_PAD_EIM_EB2__GPIO_2_22,
+	MX51_PAD_EIM_EB2__GPIO2_22,
 
 	/* COMPASS_INT */
-	MX51_PAD_EIM_CS0__GPIO_2_25,
+	MX51_PAD_EIM_CS0__GPIO2_25,
 
 	/* Three gpio gpio 2_27:28 for HW version detect */
-	MX51_PAD_EIM_CS2__GPIO_2_27,
-	MX51_PAD_EIM_CS3__GPIO_2_28,
-	MX51_PAD_EIM_CS4__GPIO_2_29,
+	MX51_PAD_EIM_CS2__GPIO2_27,
+	MX51_PAD_EIM_CS3__GPIO2_28,
+	MX51_PAD_EIM_CS4__GPIO2_29,
 
 	/* TOUCH_EN */
-	MX51_PAD_NANDF_D0__GPIO_4_8,
+	MX51_PAD_NANDF_D0__GPIO4_8,
 
 	/* BT_WAKEUP_HOST */
-	MX51_PAD_NANDF_D3__GPIO_4_5,
+	MX51_PAD_NANDF_D3__GPIO4_5,
 
 	/* BT_RST */
-	MX51_PAD_NANDF_D5__GPIO_4_3,
+	MX51_PAD_NANDF_D5__GPIO4_3,
 
 	/* VIBRATOR_ON */
-	MX51_PAD_NANDF_D9__GPIO_3_31,
+	MX51_PAD_NANDF_D9__GPIO3_31,
 
 	/* HEADPHONE DETECT In-high, out-low */
-	MX51_PAD_NANDF_D10__GPIO_3_30,
+	_MX51_PAD_NANDF_D10__GPIO3_30 | MUX_PAD_CTRL(MX51_GPIO_PAD_CTRL_PULL | PAD_CTL_PUS_100K_UP),
 
 	/* AMP_SHUT */
-	MX51_PAD_NANDF_D11__GPIO_3_29,
+	MX51_PAD_NANDF_D11__GPIO3_29,
 
 	/* VCAM_EN */
-	MX51_PAD_CSI1_D9__GPIO_3_13,
+	MX51_PAD_CSI1_D9__GPIO3_13,
 
 	/* CAMERA CSI1_D12 - CSI1_D19 */
 	MX51_PAD_CSI1_D12__CSI1_D12,
@@ -276,49 +278,49 @@ static struct pad_desc mx51lvd_pads[] = {
 	MX51_PAD_CSI1_MCLK__CSI1_MCLK,
 
 	/* LVDS_RSVD */
-	MX51_PAD_CSI2_D12__GPIO_4_9,
+	MX51_PAD_CSI2_D12__GPIO4_9,
 
 	/* 3G_SIM_DET */
-	MX51_PAD_CSI2_D18__GPIO_4_11,
+	MX51_PAD_CSI2_D18__GPIO4_11,
 
 	/* 3G Power En */
-	MX51_PAD_CSI2_D19__GPIO_4_12,
+	MX51_PAD_CSI2_D19__GPIO4_12,
 
 	/* 3G_EN */
-	MX51_PAD_CSI2_VSYNC__GPIO_4_13,
+	MX51_PAD_CSI2_VSYNC__GPIO4_13,
 
 	/* LCD_PWR_ON */
-	MX51_PAD_DI1_PIN11__GPIO_3_0,
+	MX51_PAD_DI1_PIN11__GPIO3_0,
 
 	/* LCD_STBYB */
-	MX51_PAD_DI1_PIN12__GPIO_3_1,
+	MX51_PAD_DI1_PIN12__GPIO3_1,
 
 	/* TOUCH_REST */
-	MX51_PAD_DI1_D0_CS__GPIO_3_3,
+	MX51_PAD_DI1_D0_CS__GPIO3_3,
 
 	/* MIC_Select */
-	MX51_PAD_DISPB2_SER_DIN__GPIO_3_5,
+	MX51_PAD_DISPB2_SER_DIN__GPIO3_5,
 
 	/* CSI1_PWDN */
-	MX51_PAD_DISPB2_SER_DIO__GPIO_3_6,
+	MX51_PAD_DISPB2_SER_DIO__GPIO3_6,
 
 	/* RST_USB_HUB_B */
-	MX51_PAD_DISPB2_SER_CLK__GPIO_3_7,
+	MX51_PAD_DISPB2_SER_CLK__GPIO3_7,
 
 	/* LVDS_SHTDN */
-	MX51_PAD_DISPB2_SER_RS__GPIO_3_8,
+	MX51_PAD_DISPB2_SER_RS__GPIO3_8,
 
 	/* GPS_RST */
-	MX51_PAD_DISP2_DAT6__GPIO_1_19,
+	MX51_PAD_DISP2_DAT6__GPIO1_19,
 
 	/* GPS_ON_OFF */
-	MX51_PAD_DISP2_DAT7__GPIO_1_29,
+	MX51_PAD_DISP2_DAT7__GPIO1_29,
 
 	/* HOST_WAKEUP_BT */
-	MX51_PAD_DISP2_DAT9__GPIO_1_31,
+	MX51_PAD_DISP2_DAT9__GPIO1_31,
 
 	/* 3G_RST */
-	MX51_PAD_DISP2_DAT11__GPIO_1_10,
+	MX51_PAD_DISP2_DAT11__GPIO1_10,
 
 	/* USB host1 */
 	/* USB host1, USB3317 STP */
@@ -354,23 +356,23 @@ static struct pad_desc mx51lvd_pads[] = {
 	/* SDHC3 - eMMC on board */
 	MX51_PAD_NANDF_CS7__SD3_CLK,
 	MX51_PAD_NANDF_RDY_INT__SD3_CMD,
-	MX51_PAD_NANDF_D15__SD3_DATA7,
-	MX51_PAD_NANDF_D14__SD3_DATA6,
-	MX51_PAD_NANDF_D13__SD3_DATA5,
-	MX51_PAD_NANDF_D12__SD3_DATA4,
+	MX51_PAD_NANDF_D15__SD3_DAT7,
+	MX51_PAD_NANDF_D14__SD3_DAT6,
+	MX51_PAD_NANDF_D13__SD3_DAT5,
+	MX51_PAD_NANDF_D12__SD3_DAT4,
 	MX51_PAD_NANDF_RB0__SD3_DATA3,
 	MX51_PAD_NANDF_WP_B__SD3_DATA2,
 	MX51_PAD_NANDF_RE_B__SD3_DATA1,
 	MX51_PAD_NANDF_WE_B__SD3_DATA0,
 
 	/* Audio */
-	MX51_PAD_AUD3_BB_TXD__AUD3_BB_TXD,
-	MX51_PAD_AUD3_BB_RXD__AUD3_BB_RXD,
-	MX51_PAD_AUD3_BB_CK__AUD3_BB_CK,
-	MX51_PAD_AUD3_BB_FS__AUD3_BB_FS,
+	MX51_PAD_AUD3_BB_TXD__AUD3_TXD,
+	MX51_PAD_AUD3_BB_RXD__AUD3_RXD,
+	MX51_PAD_AUD3_BB_CK__AUD3_TXC,
+	MX51_PAD_AUD3_BB_FS__AUD3_TXFS,
 
 	/* SPI_SS1_NORFLASH */
-	MX51_PAD_CSPI1_SS1__CSPI1_SS1,
+	MX51_PAD_CSPI1_SS1__ECSPI1_SS1,
 
 	/* UART1 */
 	MX51_PAD_UART1_RXD__UART1_RXD,
@@ -405,34 +407,34 @@ static struct pad_desc mx51lvd_pads[] = {
 	MX51_PAD_KEY_COL5__I2C2_SDA,
 
 	/* SD_MMC_CD_B */
-	MX51_PAD_GPIO_1_0__GPIO_1_0,
+	MX51_PAD_GPIO1_0__GPIO1_0,
 
 	/* SD1_WP */
-	MX51_PAD_GPIO_1_1__GPIO_1_1,
+	MX51_PAD_GPIO1_1__GPIO1_1,
 
 	/* PWM1_OUT */
-	MX51_PAD_GPIO_1_2__PWM_PWMO,
+	MX51_PAD_GPIO1_2__PWM1_PWMO,
 
 	/* SYS_ON_OFF_CTL */
-	MX51_PAD_GPIO_1_3__GPIO_1_3,
+	MX51_PAD_GPIO1_3__GPIO1_3,
 
 	/* WDOG_B */
-	MX51_PAD_GPIO_1_4__GPIO_1_4,
+	MX51_PAD_GPIO1_4__GPIO1_4,
 
 	/* 26M_OSC_EN */
-	MX51_PAD_GPIO_1_5__GPIO_1_5,
+	MX51_PAD_GPIO1_5__GPIO1_5,
 
 	/* LOW_P_EN */
-	MX51_PAD_GPIO_1_6__GPIO_1_6,
+	MX51_PAD_GPIO1_6__GPIO1_6,
 
 	/* INT_FROM_PMIC */
-	MX51_PAD_GPIO_1_8__GPIO_1_8,
+	MX51_PAD_GPIO1_8__GPIO1_8,
 
 	/* TOUCH INT */
-	MX51_PAD_GPIO_1_9__GPIO_1_9,
+	MX51_PAD_GPIO1_9__GPIO1_9,
 
-	MX51_PAD_EIM_A16__GPIO_2_10,
-	MX51_PAD_EIM_A17__GPIO_2_11,
+	MX51_PAD_EIM_A16__GPIO2_10,
+	MX51_PAD_EIM_A17__GPIO2_11,
 
 	/* END */
 };
@@ -444,7 +446,7 @@ static struct dvfs_wp dvfs_core_setpoint[] = {
 	{28, 8, 33, 20, 30, 0x08},   /*160MHz, AHB 133MHz, LPAPM mode*/
 	{29, 0, 33, 20, 10, 0x08},}; /* 160MHz, AHB 24MHz */
 
-/* working point(wp): 0 - 800MHz; 1 - 166.25MHz; */
+/* CPU working point(wp) */
 static struct cpu_wp cpu_wp_auto[] = {
 	{
 	 .pll_rate = 1000000000,
@@ -525,9 +527,9 @@ static struct keypad_data keypad_plat_data = {
 	.learning = 0,
 	.delay = 2,
 	.matrix = keymapping,
-	.trigger_key0 = KEY_VOLUMEUP,
-	.trigger_key1 = KEY_VOLUMEDOWN,
-	.trigger_key2 = KEY_MENU,
+	//.trigger_key0 = KEY_VOLUMEUP,
+	//.trigger_key1 = KEY_VOLUMEDOWN,
+	//.trigger_key2 = KEY_MENU,
 };
 
 static struct mxc_pwm_platform_data mxc_pwm1_platform_data = {
@@ -551,6 +553,8 @@ static struct mxc_ipu_config mxc_ipu_data = {
 
 extern void mx5_vpu_reset(void);
 static struct mxc_vpu_platform_data mxc_vpu_data = {
+	.iram_enable = false,
+	.iram_size = 0x14000,
 	.reset = mx5_vpu_reset,
 };
 
@@ -563,16 +567,16 @@ static void mx51_lvd_gpio_spi_chipselect_active(int cspi_mode, int status,
 		switch (chipselect) {
 		case 0x1:
 			{
-			struct pad_desc cspi1_ss0 = MX51_PAD_CSPI1_SS0__CSPI1_SS0;
+			iomux_v3_cfg_t cspi1_ss0 = MX51_PAD_CSPI1_SS0__ECSPI1_SS0;
 
-			mxc_iomux_v3_setup_pad(&cspi1_ss0);
+			mxc_iomux_v3_setup_pad(cspi1_ss0);
 			break;
 			}
 		case 0x2:
 			{
-			struct pad_desc cspi1_ss0_gpio = MX51_PAD_CSPI1_SS0__GPIO_4_24;
+			iomux_v3_cfg_t cspi1_ss0_gpio = MX51_PAD_CSPI1_SS0__GPIO4_24;
 
-			mxc_iomux_v3_setup_pad(&cspi1_ss0_gpio);
+			mxc_iomux_v3_setup_pad(cspi1_ss0_gpio);
 			gpio_request(LVD_CSP1_SS0_GPIO, "cspi1-gpio");
 			gpio_direction_output(LVD_CSP1_SS0_GPIO, 0);
 			gpio_set_value(LVD_CSP1_SS0_GPIO, 1 & (~status));
@@ -659,7 +663,6 @@ static struct mxc_dvfs_platform_data dvfs_core_data = {
 	.upcnt_val = 10,
 	.dncnt_val = 10,
 	.delay_time = 30,
-	.num_wp = 3,
 };
 
 static struct mxc_bus_freq_platform_data bus_freq_data = {
@@ -729,10 +732,10 @@ static struct fb_videomode video_modes[] = {
 
 static void lcd_pre_suspend(void)
 {
-	struct pad_desc pad_pwm1_out = MX51_PAD_GPIO_1_2__GPIO_1_2;
+	iomux_v3_cfg_t pad_pwm1_out = MX51_PAD_GPIO1_2__GPIO1_2;
 
 	/* config PWM1_OUT to gpio output low */
-	mxc_iomux_v3_setup_pad(&pad_pwm1_out);
+	mxc_iomux_v3_setup_pad(pad_pwm1_out);
 }
 
 static void lcd_suspend(void)
@@ -766,13 +769,13 @@ static void lcd_pre_resume(void)
 
 static void lcd_resume(void)
 {
-	struct pad_desc pad_pwm1_out = MX51_PAD_GPIO_1_2__PWM_PWMO;
+	iomux_v3_cfg_t pad_pwm1_out = MX51_PAD_GPIO1_2__PWM1_PWMO;
 
 	printk(KERN_DEBUG "lvd: lcd resume\n");
 	msleep(100);
 
 	/* config PWM1_OUT to PWMO */
-	mxc_iomux_v3_setup_pad(&pad_pwm1_out);
+	mxc_iomux_v3_setup_pad(pad_pwm1_out);
 }
 
 static struct mxc_fb_platform_data fb_data[] = {
@@ -900,7 +903,7 @@ static struct battery_platform_data ds2778_plat_data = {
 
 static struct bq24103_platform_data  bq24103_pdata = {
 	.is_online = lvd_chg_is_cable_in,
-	.irq = IOMUX_TO_IRQ_V3(LVD_AC_IN),
+	.irq = gpio_to_irq(LVD_AC_IN),
 };
 
 static struct platform_device bq24103_charger = {
@@ -950,13 +953,13 @@ static struct i2c_board_info mxc_i2c0_board_info[] __initdata = {
 	.type = "kxtf9",
 	.addr = 0x0f,
 	.platform_data = &lvd_kxtf9_data,
-	//.irq  = IOMUX_TO_IRQ_V3(LVD_G_SENSOR_INT),
+	//.irq  = gpio_to_irq(LVD_G_SENSOR_INT),
 	},
 	{	/* compass */
 	.type = "hmc5883",
 	.addr = 0x1e,
 	.platform_data = &hmc5883_data,
-	.irq  = IOMUX_TO_IRQ_V3(LVD_COMPASS_INT),
+	.irq  = gpio_to_irq(LVD_COMPASS_INT),
 	}, 
 
 #ifdef CONFIG_BATTERY_BQ27210
@@ -1032,7 +1035,7 @@ static struct i2c_board_info mxc_i2c1_board_info[] __initdata = {
 	{	/* touch */
 		.type = "pixcir_ts",
 		.addr = 0x5c,
-		.irq  = IOMUX_TO_IRQ_V3(LVD_TOUCH_INT),
+		.irq  = gpio_to_irq(LVD_TOUCH_INT),
 		.platform_data = &pixcir_callback_pdata,
 	}, 
 	{   /* Camera */
@@ -1061,18 +1064,6 @@ static unsigned int sdhc_get_card_det_status(struct device *dev)
 	}
 }
 
-static void (*wifi_status_cb)(int card_present, void *dev_id);
-static void *wifi_status_cb_devid;
-
-static int mx51_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
-{
-	if (wifi_status_cb)
-		return -EAGAIN;
-	wifi_status_cb = callback;
-	wifi_status_cb_devid = dev_id;
-	return 0;
-}
-
 static int mx51_wifi_power(int on)
 {
 	printk(KERN_DEBUG "%s: %d\n", __func__, on);
@@ -1094,20 +1085,15 @@ static int mx51_wifi_reset(int on)
 static int mx51_wifi_set_carddetect(int on)
 {
 	printk(KERN_DEBUG "%s: %d\n", __func__, on);
-
-	if (wifi_status_cb)
-		wifi_status_cb(on, wifi_status_cb_devid);
-	else
-		printk(KERN_WARNING "%s: Nobody to notify\n", __func__);
-   
+	mxc_mmc_force_detect(1);
 	return 0;
 }
 
 static struct resource mx51_wifi_resources[] = {
 	[0] = {
 		.name  = "bcm4329_wlan_irq",
-		.start =  IOMUX_TO_IRQ_V3(LVD_WLAN_WAKEUP_HOST),
-		.end   =  IOMUX_TO_IRQ_V3(LVD_WLAN_WAKEUP_HOST),
+		.start =  gpio_to_irq(LVD_WLAN_WAKEUP_HOST),
+		.end   =  gpio_to_irq(LVD_WLAN_WAKEUP_HOST),
 		.flags = IORESOURCE_IRQ,
 	},
 };
@@ -1148,7 +1134,6 @@ static struct mxc_mmc_platform_data mmc2_data = {
 	.status = sdhc_get_card_det_status,
 	.wp_status = sdhc_write_protect,
 	.clock_mmc = "esdhc_clk",
-	.register_status_notify = mx51_wifi_status_register,
 };
 
 static struct mxc_mmc_platform_data mmc3_data = {
@@ -1175,6 +1160,12 @@ static int mxc_sgtl5000_amp_enable(int enable)
 	return 0;
 }
 
+static int mxc_sgtl5000_clock_enable(int enable)
+{
+	//gpio_set_value(BABBAGE_AUDIO_CLK_EN, !enable);
+	return 0;
+}
+
 static int mxc_sgtl5000_finit(void)
 {
 	printk(KERN_INFO "lvd mxc_sgtl5000_finit: shutdown amp\n");
@@ -1191,9 +1182,10 @@ static struct mxc_audio_platform_data sgtl5000_data = {
 	.ssi_num = 1,
 	.src_port = 2,
 	.ext_port = 3,
-	.hp_irq = IOMUX_TO_IRQ_V3(LVD_HPHONE_DET),
+	.hp_irq = gpio_to_irq(LVD_HPHONE_DET),
 	.hp_status = headphone_det_status,
 	.amp_enable = mxc_sgtl5000_amp_enable,
+	.clock_enable = mxc_sgtl5000_clock_enable,
 	.hpmic_switch = mxc_sgtl5000_hp_mic_switch,
 	.sysclk = 12288000,
 	.finit = mxc_sgtl5000_finit,
@@ -1227,11 +1219,6 @@ static char *usb_functions_rndis[] = {
 	"rndis",
 };
 
-static char *usb_functions_rndis_adb[] = {
-	"rndis",
-	"adb",
-};
-
 static char *usb_functions_all[] = {
 	"rndis",
 	"usb_mass_storage",
@@ -1250,14 +1237,9 @@ static struct android_usb_product usb_products[] = {
 		.functions	= usb_functions_ums_adb,
 	},
 	{
-		.product_id	= 0x0c03,
+		.product_id	= 0x0c10,
 		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
 		.functions	= usb_functions_rndis,
-	},
-	{
-		.product_id	= 0x0c04,
-		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
-		.functions	= usb_functions_rndis_adb,
 	},
 };
 
@@ -1467,6 +1449,33 @@ static struct platform_device android_vibrator_device = {
 	.dev = { .platform_data = &android_vibrator_data},                                             
 };
 
+static int gps_set_power(int enable)
+{
+	printk(KERN_DEBUG "gps_set_power: %d\n", enable);
+	if (enable) {
+		gpio_set_value(LVD_GPS_PWR_ON, 1);
+	} else {
+		gpio_set_value(LVD_GPS_PWR_ON, 0);
+	}
+	return 0;
+}
+
+static int gps_set_nrst(int nrst)
+{
+	printk(KERN_DEBUG "gps_set_nrst: %d\n", nrst);
+	gpio_set_value(LVD_GPS_RST, nrst);
+	return 0;
+}
+
+static struct gps_control_data gps_ctrl_data = {
+	.set_power = gps_set_power,
+	.set_nrst = gps_set_nrst,
+};
+
+static struct platform_device gps_ctrl_device = {
+	.name = "gps-control",
+};
+
 static int bluetooth_power(int on)
 {
 	printk(KERN_DEBUG "lvd: bt power %d\n", on);
@@ -1504,8 +1513,8 @@ static struct resource mx51_bluesleep_resources[] = {
 
 	[2] = {
 		.name  = "bt_wakeup_host",
-		.start =  IOMUX_TO_IRQ_V3(LVD_BT_WAKEUP_HOST),
-		.end   =  IOMUX_TO_IRQ_V3(LVD_BT_WAKEUP_HOST),
+		.start =  gpio_to_irq(LVD_BT_WAKEUP_HOST),
+		.end   =  gpio_to_irq(LVD_BT_WAKEUP_HOST),
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
@@ -1545,21 +1554,23 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 	struct tag *t;
 	struct tag *mem_tag = 0;
 	int total_mem = SZ_512M;
-	int left_mem = 0, temp_mem = 0;
-	int gpu_mem = SZ_16M;
+	int left_mem = 0;
+	int gpu_mem = SZ_64M;
 	int fb_mem = SZ_32M;
-#ifdef CONFIG_ANDROID_PMEM
-	int pmem_gpu_size = android_pmem_gpu_data.size;
-	int pmem_adsp_size = android_pmem_data.size;
-	fb_mem = 0;
-#endif
 
 	mxc_set_cpu_type(MXC_CPU_MX51);
 
 	get_cpu_wp = mx51_lvd_get_cpu_wp;
 	set_num_cpu_wp = mx51_lvd_set_num_cpu_wp;
 	get_dvfs_core_wp = mx51_lvd_get_dvfs_core_table;
+	num_cpu_wp = ARRAY_SIZE(cpu_wp_auto);
 
+	for_each_tag(mem_tag, tags) {
+		if (mem_tag->hdr.tag == ATAG_MEM) {
+			total_mem = mem_tag->u.mem.size;
+			break;
+		}
+	}
 
 	for_each_tag(t, tags) {
 		if (t->hdr.tag == ATAG_CMDLINE) {
@@ -1567,8 +1578,13 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 			str = strstr(str, "mem=");
 			if (str != NULL) {
 				str += 4;
-				temp_mem = memparse(str, &str);
+				left_mem = memparse(str, &str);
 			}
+
+			str = t->u.cmdline.cmdline;
+			str = strstr(str, "gpu_nommu");
+			if (str != NULL)
+				gpu_data.enable_mmu = 0;
 
 			str = t->u.cmdline.cmdline;
 			str = strstr(str, "gpu_memory=");
@@ -1576,49 +1592,38 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 				str += 11;
 				gpu_mem = memparse(str, &str);
 			}
+
 			break;
 		}
 	}
 
-	for_each_tag(mem_tag, tags) {
-		if (mem_tag->hdr.tag == ATAG_MEM) {
-			total_mem = mem_tag->u.mem.size;
-#ifdef CONFIG_ANDROID_PMEM
-			left_mem = total_mem - gpu_mem - pmem_gpu_size - pmem_adsp_size;
-#else
-			left_mem = total_mem - gpu_mem - fb_mem;
-#endif
-			break;
-		}
-	}
+	if (gpu_data.enable_mmu)
+		gpu_mem = 0;
 
-	if (temp_mem > 0 && temp_mem < left_mem)
-		left_mem = temp_mem;
+	if (left_mem == 0 || left_mem > total_mem)
+		left_mem = total_mem - gpu_mem - fb_mem;
 
 	if (mem_tag) {
-#ifndef CONFIG_ANDROID_PMEM
 		fb_mem = total_mem - left_mem - gpu_mem;
 		if (fb_mem < 0) {
 			gpu_mem = total_mem - left_mem;
 			fb_mem = 0;
 		}
-#else
-		android_pmem_data.start = mem_tag->u.mem.start
-				+ left_mem + gpu_mem + pmem_gpu_size;
-		android_pmem_gpu_data.start = mem_tag->u.mem.start
-				+ left_mem + gpu_mem;
-#endif
 		mem_tag->u.mem.size = left_mem;
 
 		/*reserve memory for gpu*/
-		gpu_device.resource[5].start =
+		if (!gpu_data.enable_mmu) {
+			gpu_device.resource[5].start =
 				mem_tag->u.mem.start + left_mem;
-		gpu_device.resource[5].end =
+			gpu_device.resource[5].end =
 				gpu_device.resource[5].start + gpu_mem - 1;
+		}
 #if defined(CONFIG_FB_MXC_SYNC_PANEL) || \
 	defined(CONFIG_FB_MXC_SYNC_PANEL_MODULE)
 		if (fb_mem) {
 			mxcfb_resources[0].start =
+				gpu_data.enable_mmu ?
+				mem_tag->u.mem.start + left_mem :
 				gpu_device.resource[5].end + 1;
 			mxcfb_resources[0].end =
 				mxcfb_resources[0].start + fb_mem - 1;
@@ -1665,7 +1670,7 @@ static void mxc_register_powerkey(pwrkey_callback pk_cb)
 {
 	/* Set power key as wakeup resource */
 	int irq, ret;
-	irq = IOMUX_TO_IRQ_V3(LVD_SYS_ON_OFF_REQ);
+	irq = gpio_to_irq(LVD_SYS_ON_OFF_REQ);
 
 	if (gpio_get_value(LVD_SYS_ON_OFF_REQ))
 		set_irq_type(irq, IRQF_TRIGGER_FALLING);
@@ -1886,12 +1891,10 @@ static void __init mx51_lvd_io_init(void)
 
 	/* GPS Power on*/
 	gpio_request(LVD_GPS_PWR_ON, "gps_pwr_on");
-	gpio_export(LVD_GPS_PWR_ON, 1);
 	gpio_direction_output(LVD_GPS_PWR_ON, 0);
 	
 	/* GPS Reset */
 	gpio_request(LVD_GPS_RST, "gps_reset");
-	gpio_export(LVD_GPS_RST, 1);
 	gpio_direction_output(LVD_GPS_RST, 1);
 }
 
@@ -1918,8 +1921,8 @@ static void __init mxc_board_init(void)
 	mxc_spdif_data.spdif_core_clk = clk_get(NULL, "spdif_xtal_clk");
 	clk_put(mxc_spdif_data.spdif_core_clk);
 	/* SD card detect irqs */
-	mxcsdhc1_device.resource[2].start = IOMUX_TO_IRQ_V3(LVD_SD_MMC_SD);
-	mxcsdhc1_device.resource[2].end = IOMUX_TO_IRQ_V3(LVD_SD_MMC_SD);
+	mxcsdhc1_device.resource[2].start = gpio_to_irq(LVD_SD_MMC_SD);
+	mxcsdhc1_device.resource[2].end = gpio_to_irq(LVD_SD_MMC_SD);
 
 	mxc_cpu_common_init();
 	mx51_lvd_io_init();
@@ -1935,7 +1938,7 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_ipu_device, &mxc_ipu_data);
 	//mxc_register_device(&mxc_tve_device, &tve_data);
 	mxc_register_device(&mxcvpu_device, &mxc_vpu_data);
-	mxc_register_device(&gpu_device, NULL);
+	mxc_register_device(&gpu_device, &gpu_data);
 	mxc_register_device(&mxcscc_device, NULL);
 	mxc_register_device(&mx51_lpmode_device, NULL);
 	mxc_register_device(&busfreq_device, &bus_freq_data);
@@ -1953,16 +1956,16 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_ssi1_device, NULL);
 	mxc_register_device(&mxc_ssi2_device, NULL);
 	mxc_register_device(&mxc_alsa_spdif_device, &mxc_spdif_data);
+	mxc_register_device(&mxc_android_pmem_device, &android_pmem_data);
+	mxc_register_device(&mxc_android_pmem_gpu_device,
+					&android_pmem_gpu_data);
+	mxc_register_device(&usb_mass_storage_device, &mass_storage_data);
+	mxc_register_device(&usb_rndis_device, &rndis_data);
+	mxc_register_device(&android_usb_device, &android_usb_data);
 	//mxc_register_device(&mxc_fec_device, NULL);
 	mxc_register_device(&mxc_v4l2_device, NULL);
 	mxc_register_device(&mxc_v4l2out_device, NULL);
 	mxc_register_device(&mxc_powerkey_device, &pwrkey_data);
-
-	mxc_register_device(&mxc_android_pmem_device, &android_pmem_data);
-	mxc_register_device(&mxc_android_pmem_gpu_device, &android_pmem_gpu_data);
-	mxc_register_device(&usb_mass_storage_device, &mass_storage_data);
-	mxc_register_device(&usb_rndis_device, &rndis_data);
-	mxc_register_device(&android_usb_device, &android_usb_data);
 
 	/* vibrator detect */
 	mxc_register_device(&android_vibrator_device, &android_vibrator_data);
@@ -1975,17 +1978,19 @@ static void __init mxc_board_init(void)
 				ARRAY_SIZE(mxc_i2c1_board_info));
 
 	pm_power_off = mxc_power_off;
-	pm_enter_standby_misc_setting = mx51_lvd_workaround_tps65251_low_power_mode;
+	//pm_enter_standby_misc_setting = mx51_lvd_workaround_tps65251_low_power_mode;
 
-	if (cpu_is_mx51_rev(CHIP_REV_1_1) == 2) {
-		sgtl5000_data.sysclk = 26000000;
-	}
+	sgtl5000_data.sysclk = 26000000;
+
 	/* EIM_A23: audio amp shut pin */
 	gpio_request(LVD_AMP_SHUT, "amp_shut"); /* ?????????????? is this audio standby? Driver to low? */
 	gpio_direction_output(LVD_AMP_SHUT, 0);
 	gpio_set_value(LVD_AMP_SHUT, 0);
 	mxc_register_device(&mxc_sgtl5000_device, &sgtl5000_data);
 	mxc_register_device(&mx51_wifi_device, &mx51_wifi_control);
+
+	/* Register GPS control platform device */
+	mxc_register_device(&gps_ctrl_device, &gps_ctrl_data);
 
 	/* Register bluetooth power platform device */
 	mxc_register_device(&bt_power_device, &bluetooth_power);
@@ -2017,7 +2022,7 @@ static void __init mx51_lvd_timer_init(void)
 	struct clk *uart_clk;
 
 	/* Change the CPU voltages for TO2*/
-	if (cpu_is_mx51_rev(CHIP_REV_2_0) <= 1) {
+	if (mx51_revision() == IMX_CHIP_REVISION_2_0) {
 		cpu_wp_auto[0].cpu_voltage = 1175000;
 		cpu_wp_auto[1].cpu_voltage = 1100000;
 		cpu_wp_auto[2].cpu_voltage = 1000000;
@@ -2033,6 +2038,83 @@ static struct sys_timer mxc_timer = {
 	.init	= mx51_lvd_timer_init,
 };
 
+static void __init fixup_android_board(struct machine_desc *desc, struct tag *tags,
+				   char **cmdline, struct meminfo *mi)
+{
+	char *str;
+	struct tag *t;
+	struct tag *mem_tag = 0;
+	int total_mem = SZ_512M;
+	int left_mem = 0, avali_mem = 0;
+	int gpu_mem = SZ_16M;
+	int pmem_gpu_size = android_pmem_gpu_data.size;
+	int pmem_adsp_size = android_pmem_data.size;
+
+	mxc_set_cpu_type(MXC_CPU_MX51);
+
+	get_cpu_wp = mx51_lvd_get_cpu_wp;
+	set_num_cpu_wp = mx51_lvd_set_num_cpu_wp;
+	get_dvfs_core_wp = mx51_lvd_get_dvfs_core_table;
+	num_cpu_wp = ARRAY_SIZE(cpu_wp_auto);
+
+	/* get mem= and gpu_memory= from cmdline */
+	for_each_tag(t, tags) {
+		if (t->hdr.tag == ATAG_CMDLINE) {
+			str = t->u.cmdline.cmdline;
+			str = strstr(str, "mem=");
+			if (str != NULL) {
+				str += 4;
+				avali_mem = memparse(str, &str);
+			}
+
+			str = t->u.cmdline.cmdline;
+			str = strstr(str, "gpu_nommu");
+			if (str != NULL)
+				gpu_data.enable_mmu = 0;
+
+			str = t->u.cmdline.cmdline;
+			str = strstr(str, "gpu_memory=");
+			if (str != NULL) {
+				str += 11;
+				gpu_mem = memparse(str, &str);
+			}
+			break;
+		}
+	}
+
+	if (gpu_data.enable_mmu)
+		gpu_mem = 0;
+
+	/* get total memory from TAGS */
+	for_each_tag(mem_tag, tags) {
+		if (mem_tag->hdr.tag == ATAG_MEM) {
+			total_mem = mem_tag->u.mem.size;
+			left_mem = total_mem - gpu_mem
+				- pmem_gpu_size - pmem_adsp_size;
+			break;
+		}
+	}
+
+	if (avali_mem > 0 && avali_mem < left_mem)
+		left_mem = avali_mem;
+
+	if (mem_tag) {
+		android_pmem_data.start = mem_tag->u.mem.start
+				+ left_mem + gpu_mem + pmem_gpu_size;
+		android_pmem_gpu_data.start = mem_tag->u.mem.start
+				+ left_mem + gpu_mem;
+		mem_tag->u.mem.size = left_mem;
+
+		/*reserve memory for gpu*/
+		if (!gpu_data.enable_mmu) {
+			gpu_device.resource[5].start =
+				mem_tag->u.mem.start + left_mem;
+			gpu_device.resource[5].end =
+				gpu_device.resource[5].start + gpu_mem - 1;
+		}
+	}
+}
+
 /*
  * The following uses standard kernel macros define in arch.h in order to
  * initialize __mach_desc_MX51_LVD data structure.
@@ -2042,7 +2124,11 @@ MACHINE_START(MX51_LVD, "Lvd Freescale MX51 Board")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+#ifdef CONFIG_ANDROID_PMEM
+	.fixup = fixup_android_board,
+#else
 	.fixup = fixup_mxc_board,
+#endif
 	.map_io = mx5_map_io,
 	.init_irq = mx5_init_irq,
 	.init_machine = mxc_board_init,
