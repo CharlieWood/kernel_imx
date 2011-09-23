@@ -1812,7 +1812,7 @@ static void __init fixup_android_board(struct machine_desc *desc, struct tag *ta
  * initialize __mach_desc_MX51_ASTER7 data structure.
  */
 /* *INDENT-OFF* */
-MACHINE_START(MX51_ASTER7, "Aster7 Freescale MX51 Board")
+MACHINE_START(MX51_ASTER7, "Aster7")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
