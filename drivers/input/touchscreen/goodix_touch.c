@@ -78,7 +78,7 @@ struct goodix_ts_data {
 	int (*power)(struct goodix_ts_data * ts, int on);
 };
 
-const char *ts_name = "Goodix TouchScreen of GT80X";
+const char *ts_name = "guitar_gt80x";
 static struct workqueue_struct *goodix_wq;
 
 /* Used by GT80X-IAP module */
