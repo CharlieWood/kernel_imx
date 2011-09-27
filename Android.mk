@@ -15,10 +15,10 @@ $(LOCAL_PATH)/arch/arm/boot/uImage: FORCE
 	@echo "start build kernel with cfgfile: $(TARGET_KERNEL_CONFIG_NAME)"
 	+$(MAKE) -C "$(KERNEL_ROOT)" $(TARGET_KERNEL_CONFIG_NAME) \
 		ARCH=arm \
-		CROSS_COMPILE=${ANDROID_BUILD_TOP}/$(TARGET_TOOLS_PREFIX)
+		CROSS_COMPILE=${ANDROID_BUILD_TOP}/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 	+$(MAKE) -C "$(KERNEL_ROOT)" uImage \
 		ARCH=arm \
-		CROSS_COMPILE=${ANDROID_BUILD_TOP}/$(TARGET_TOOLS_PREFIX)
+		CROSS_COMPILE=${ANDROID_BUILD_TOP}/prebuilt/linux-x86/toolchain/arm-eabi-4.4.3/bin/arm-eabi-
 
 clean-kernel::
 	$(MAKE) -C "$(KERNEL_ROOT)" clean
