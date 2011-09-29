@@ -1474,12 +1474,17 @@ static int mxcfb_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct fb_info *fbi = platform_get_drvdata(pdev);
 	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)fbi->par;
+	struct mxc_fb_platform_data *plat_data = pdev->dev.platform_data;
 	int saved_blank;
 #ifdef CONFIG_FB_MXC_LOW_PWR_DISPLAY
 	void *fbmem;
 #endif
 
-	acquire_console_sem();
+	/* suspend platform display device */
+	if(plat_data && plat_data->pre_suspend)
+		plat_data->pre_suspend();
+
+	//acquire_console_sem();
 	fb_set_suspend(fbi, 1);
 	saved_blank = mxc_fbi->cur_blank;
 #ifdef CONFIG_ANDROID
@@ -1493,6 +1498,10 @@ static int mxcfb_suspend(struct platform_device *pdev, pm_message_t state)
 	mxc_fbi->next_blank = saved_blank;
 	release_console_sem();
 
+	/* suspend platform display device */
+	if(plat_data && plat_data->suspend)
+		plat_data->suspend();
+
 	return 0;
 }
 
@@ -1503,11 +1512,20 @@ static int mxcfb_resume(struct platform_device *pdev)
 {
 	struct fb_info *fbi = platform_get_drvdata(pdev);
 	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)fbi->par;
+	struct mxc_fb_platform_data *plat_data = pdev->dev.platform_data;
+
+	/* resume platform display device */
+	if(plat_data && plat_data->pre_resume)
+		plat_data->pre_resume();
 
 	acquire_console_sem();
 	mxcfb_blank(mxc_fbi->next_blank, fbi);
 	fb_set_suspend(fbi, 0);
 	release_console_sem();
+
+	/* resume platform display device */
+	if(plat_data && plat_data->resume)
+		plat_data->resume();
 
 	return 0;
 }
